@@ -377,4 +377,190 @@ This project delivers a **fully autonomous, safe, and user-parameterized leverag
 
 It demonstrates how **Reactive Network** can automate complex, multi-step DeFi strategies through **event-driven orchestration**, which is exactly the objective of the bounty.
 
+---
+
+
+
+
+
+
+
+
+
+
+
+
+
+# 🚀 Deployment & Execution Walkthrough (Base Mainnet)
+
+This section walks through **how the system is deployed**, **why Base mainnet is used**, and **what to expect during execution** when running the provided scripts.
+
+---
+
+## 🌐 Why Base Mainnet?
+
+For this demo, **Base mainnet** is used for deployment and execution.
+
+This is intentional because:
+
+* **Aave V3** is fully available and stable on Base mainnet
+* **Reactive Network callbacks** are compatible with Base mainnet
+* Aave testnets and Reactive testnets do **not fully align**, which can cause mismatched behavior
+
+📌 Using Base mainnet ensures the looping logic behaves exactly as it would in production.
+
+---
+## ⚙️ Required Environment Variables
+
+Before running any scripts, make sure the following environment variables are set:
+
+```bash
+export BASE_RPC=https://mainnet.base.org
+export PRIVATE_KEY=
+
+export REACTIVE_RPC=https://mainnet-rpc.rnk.dev/
+export SYSTEM_CONTRACT_ADDR=0x0000000000000000000000000000000000fffFfF
+
+export WETH_ADDRESS=0x4200000000000000000000000000000000000006
+export ADDRESS_PROVIDER=0xe20fCBdBfFC4Dd138cE8b2E6FBb6CB49777ad64D
+export USDC=0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913
+export UNISWAP_ROUTER=0x4752ba5dbc23f44d87826276bf6fd6b1c372ad24
+
+export REACTIVE_CALLBACK=0x0D3E76De6bC44309083cAAFdB49A088B8a250947
+export BASE_CHAINID=8453
+
+export AAVE_LOOP=
+export REACTIVE_CONTRACT=
+```
+
+
+
+## 🧪 Example Configuration Used in This Demo
+
+For demonstration and testing, we use the following setup:
+
+* **Asset**: WETH
+* **Initial supply**: `0.003 WETH`
+* **Borrow per iteration**: `70%` of available borrow capacity
+* **Minimum borrow amount**: `0.00003 WETH`
+* **Minimum health factor**: `1.0`
+* **Target TVL**: `0.01 WETH`
+
+This configuration is intentionally small so the full loop can be observed clearly on-chain.
+
+---
+
+## 🔁 What Happens During Execution (Iteration by Iteration)
+
+After the initial supply, the loop runs **automatically** via Reactive callbacks.
+
+Because Aave enforces **LTV and health factor constraints**, each iteration borrows **less than the previous one**, resulting in gradual growth.
+
+Below is an **approximate** progression you should expect:
+
+| Iteration | Approx Collateral (TVL) |
+| --------- | ----------------------- |
+| Initial   | 0.0030 WETH             |
+| 1         | ~0.0047 WETH            |
+| 2         | ~0.0061 WETH            |
+| 3         | ~0.0074 WETH            |
+| 4         | ~0.0084 WETH            |
+| 5         | ~0.0093 WETH            |
+| 6         | ~0.0101 WETH ✅          |
+
+📌 **Expected total iterations: ~5–6**
+
+The loop stops automatically once the collateral crosses the **0.01 WETH target TVL**.
+
+---
+
+## 🧾 Deployment & Execution Scripts
+
+Below are the exact scripts used, along with a brief explanation of what each one does.
+
+---
+
+### 1️⃣ Deploy AaveLoop (Base Mainnet)
+
+```bash
+forge create --broadcast --rpc-url $BASE_RPC --private-key $PRIVATE_KEY \
+src/AaveLoop.sol:AaveLoop \
+--constructor-args $ADDRESS_PROVIDER $USDC $UNISWAP_ROUTER $REACTIVE_CALLBACK --legacy
+```
+
+Deploys the contract that holds funds and executes Aave supply, borrow, swap, and re-supply logic.
+
+---
+
+### 2️⃣ Fund AaveLoop for Reactive Callbacks
+
+```bash
+cast send $AAVE_LOOP --value 0.001ether --rpc-url $BASE_RPC --private-key $PRIVATE_KEY --legacy
+```
+
+Adds ETH used only to pay Reactive callback execution fees.
+
+---
+
+### 3️⃣ Deploy Reactive Contract (Reactive Network)
+
+```bash
+forge create --broadcast --rpc-url $REACTIVE_RPC --private-key $PRIVATE_KEY \
+src/Reactive.sol:ReactiveContract \
+--constructor-args $SYSTEM_CONTRACT_ADDR $BASE_CHAINID $AAVE_LOOP --legacy
+```
+
+Deploys the Reactive automation contract that listens to AaveLoop events.
+
+---
+
+### 4️⃣ Fund Reactive Contract
+
+```bash
+cast send $REACTIVE_CONTRACT --value 10ether --rpc-url $REACTIVE_RPC --private-key $PRIVATE_KEY --legacy
+```
+
+Funds cross-chain execution for multiple automated iterations.
+
+---
+
+### 5️⃣ Approve WETH for AaveLoop
+
+```bash
+cast send $WETH_ADDRESS "approve(address,uint256)" $AAVE_LOOP 0.003ether \
+--rpc-url $BASE_RPC --private-key $PRIVATE_KEY --legacy
+```
+
+Allows AaveLoop to transfer the initial WETH collateral.
+
+---
+
+### 6️⃣ Start the Loop (Single User Action)
+
+```bash
+cast send $AAVE_LOOP \
+"supplyAndLoop(address,uint256,uint16,uint256,uint16,uint256,uint256)" \
+$WETH_ADDRESS 0.003ether 7000 0.00003ether 5000 10000 0.01ether \
+--rpc-url $BASE_RPC --private-key $PRIVATE_KEY --legacy
+```
+
+Supplies WETH and triggers the fully autonomous looping process.
+
+---
+
+## ✅ Final Notes
+
+* The user submits **one transaction**
+* All subsequent iterations are **event-driven**
+* No keepers, no bots, no manual intervention
+* Iterations stop naturally once the target TVL is reached
+
+---
+
+### 🧠 In Simple Terms
+
+> You provide a small amount of WETH,
+> the system automatically builds leverage in safe steps,
+> and stops exactly where you tell it to.
+
 
