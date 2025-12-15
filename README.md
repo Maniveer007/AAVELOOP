@@ -23,6 +23,12 @@ A **leveraged loop** is a strategy where a user:
 
 ---
 
+## 🎥 Videos
+
+* **DeploymentsVideo:** [https://youtu.be/zzwgTsyI1tw](https://youtu.be/zzwgTsyI1tw)
+* **Walkthrough:** [https://youtu.be/BCKCcGQp8_k](https://youtu.be/BCKCcGQp8_k)
+
+
 ## 🎯 Goal of the Project
 
 The goal is to convert a **multi-transaction leverage strategy** into a **single-step automated workflow**.
